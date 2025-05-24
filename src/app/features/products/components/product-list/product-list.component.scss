@@ -1,0 +1,28 @@
+.filter-section {
+  display: flex;
+  flex-wrap: wrap; // Permite que los elementos se envuelvan si no hay espacio
+  gap: 15px; // Espacio entre los elementos
+  margin-bottom: 20px;
+  align-items: center;
+
+  mat-form-field {
+    flex: 1; // Permite que los campos de formulario ocupen el espacio disponible
+    min-width: 200px; // Ancho mínimo para que no se compriman demasiado
+  }
+
+  button {
+    flex-shrink: 0; // Evita que los botones se encojan
+  }
+}
+
+table {
+  width: 100%;
+}
+
+.mat-card {
+  margin: 20px;
+}
+
+.mat-icon {
+  vertical-align: middle;
+}

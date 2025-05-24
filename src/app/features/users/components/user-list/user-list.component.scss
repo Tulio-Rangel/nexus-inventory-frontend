@@ -1,0 +1,22 @@
+.filter-add-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+
+  .filter-field {
+    width: 300px; // Ajusta el ancho según necesidad
+  }
+}
+
+table {
+  width: 100%;
+}
+
+.mat-card {
+  margin: 20px;
+}
+
+.mat-icon {
+  vertical-align: middle;
+}

@@ -1,0 +1,67 @@
+<mat-card class="mat-elevation-z3 product-form-card">
+  <mat-card-header>
+    <mat-card-title>{{ isEditMode ? 'Editar Mercancía' : 'Registrar Nueva Mercancía' }}</mat-card-title>
+    <mat-card-subtitle>Completa la información de la mercancía</mat-card-subtitle>
+  </mat-card-header>
+  <mat-card-content>
+    <form [formGroup]="productForm" (ngSubmit)="onSubmit()" class="product-form">
+      <mat-form-field appearance="outline">
+        <mat-label>Nombre del Producto</mat-label>
+        <input matInput formControlName="productName" placeholder="Ej. Filtro de Aceite">
+        <mat-error *ngIf="productForm.get('productName')?.invalid && productForm.get('productName')?.touched">
+          {{ getErrorMessage('productName') }}
+        </mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Cantidad</mat-label>
+        <input matInput type="number" formControlName="quantity" placeholder="Ej. 50">
+        <mat-error *ngIf="productForm.get('quantity')?.invalid && productForm.get('quantity')?.touched">
+          {{ getErrorMessage('quantity') }}
+        </mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Fecha de Ingreso</mat-label>
+        <input matInput [matDatepicker]="entryDatePicker" formControlName="entryDate" readonly>
+        <mat-datepicker-toggle matSuffix [for]="entryDatePicker"></mat-datepicker-toggle>
+        <mat-datepicker #entryDatePicker></mat-datepicker>
+        <mat-error *ngIf="productForm.get('entryDate')?.invalid && productForm.get('entryDate')?.touched">
+          {{ getErrorMessage('entryDate') }}
+        </mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" *ngIf="!isEditMode">
+        <mat-label>Usuario que Registra</mat-label>
+        <mat-select formControlName="registeredByUserId">
+          <mat-option [value]="null">-- Seleccione --</mat-option>
+          <mat-option *ngFor="let user of availableUsers" [value]="user.id">{{ user.name }}</mat-option>
+        </mat-select>
+        <mat-error *ngIf="productForm.get('registeredByUserId')?.invalid && productForm.get('registeredByUserId')?.touched">
+          Este campo es requerido
+        </mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" *ngIf="isEditMode">
+        <mat-label>Última Modificación por</mat-label>
+        <mat-select formControlName="lastModifiedByUserId">
+          <mat-option [value]="null">-- Seleccione --</mat-option>
+          <mat-option *ngFor="let user of availableUsers" [value]="user.id">{{ user.name }}</mat-option>
+        </mat-select>
+        <mat-error *ngIf="productForm.get('lastModifiedByUserId')?.invalid && productForm.get('lastModifiedByUserId')?.touched">
+          Este campo es requerido
+        </mat-error>
+      </mat-form-field>
+
+      <div class="form-actions">
+        <button mat-raised-button color="primary" type="submit" [disabled]="productForm.invalid">
+          <mat-icon>{{ isEditMode ? 'save' : 'add' }}</mat-icon>
+          {{ isEditMode ? 'Guardar Cambios' : 'Registrar Mercancía' }}
+        </button>
+        <button mat-button routerLink="/products">
+          <mat-icon>cancel</mat-icon> Cancelar
+        </button>
+      </div>
+    </form>
+  </mat-card-content>
+</mat-card>
