@@ -31,46 +31,36 @@ export class ProductFormComponent implements OnInit {
   ngOnInit(): void {
     this.productForm = this.fb.group({
       productName: ['', Validators.required],
-      quantity: ['', [Validators.required, Validators.min(1), Validators.pattern('^[0-9]*$')]], // Entero positivo
+      quantity: ['', [Validators.required, Validators.min(1), Validators.pattern('^[0-9]*$')]],
       entryDate: ['', Validators.required],
-      // Campo para el usuario, que será diferente dependiendo si es creación o edición
-      registeredByUserId: [null], // Solo para creación
-      lastModifiedByUserId: [null] // Solo para edición
+      registeredByUserId: [null],
+      lastModifiedByUserId: [null]
     });
 
     this.productId = this.route.snapshot.params['id'] ? +this.route.snapshot.params['id'] : null;
     this.isEditMode = !!this.productId;
 
-    this.loadUsers(); // Cargar usuarios para el selector
+    this.loadUsers();
 
     if (this.isEditMode) {
-      // En modo edición, cargamos el producto y seteamos los valores
-      // Usaremos el ProductService.searchProducts con un filtro por ID para obtener el DTO de respuesta
-      this.productService.searchProducts({ userId: undefined, entryDate: undefined, productName: undefined })
-        .subscribe({
-          next: (products) => {
-            const product = products.find(p => p.id === this.productId);
-            if (product) {
-              this.productForm.patchValue({
-                productName: product.productName,
-                quantity: product.quantity,
-                entryDate: moment(product.entryDate), // Para MatDatepicker
-                lastModifiedByUserId: product.lastModifiedByName ? this.availableUsers.find(u => u.name === product.lastModifiedByName)?.id : null
-                // El campo registeredByUserId no se usa directamente en la edición, se usa en el backend
-              });
-              // Deshabilitar registeredByUserId en edición, ya que no se puede cambiar
-              this.productForm.get('registeredByUserId')?.disable();
-            } else {
-              this.snackBar.open('Mercancía no encontrada para edición.', 'Cerrar', { duration: 3000 });
-              this.router.navigate(['/products']);
-            }
-          },
-          error: (err) => {
-            this.snackBar.open('Error al cargar mercancía para edición: ' + err.error.message, 'Cerrar', { duration: 3000 });
-            console.error('Error al cargar mercancía:', err);
-            this.router.navigate(['/products']);
-          }
-        });
+      this.productService.getProductById(this.productId!).subscribe({
+        next: (product) => {
+          this.productForm.patchValue({
+            productName: product.productName,
+            quantity: product.quantity,
+            entryDate: moment(product.entryDate), // Para MatDatepicker
+            // Si el producto tiene un lastModifiedByName, intentamos encontrar su ID
+            lastModifiedByUserId: product.lastModifiedByName ? this.availableUsers.find(u => u.name === product.lastModifiedByName)?.id : null
+          });
+          // Deshabilitar registeredByUserId en edición, ya que no se puede cambiar
+          this.productForm.get('registeredByUserId')?.disable();
+        },
+        error: (err) => {
+          this.snackBar.open('Error al cargar mercancía para edición: ' + err.error.message, 'Cerrar', { duration: 3000 });
+          console.error('Error al cargar mercancía:', err);
+          this.router.navigate(['/products']); // Redirige si hay un error al cargar el producto
+        }
+      });
     } else {
       // En modo creación, hacemos que registeredByUserId sea requerido
       this.productForm.get('registeredByUserId')?.setValidators(Validators.required);
@@ -84,6 +74,16 @@ export class ProductFormComponent implements OnInit {
     this.userService.getAllUsers().subscribe({
       next: (users) => {
         this.availableUsers = users;
+        // Si estamos en modo edición y los usuarios ya se cargaron,
+        // esto asegurará que 'lastModifiedByUserId' tenga el valor correcto
+        // Esto es importante si loadUsers tarda más que la carga del producto.
+        if (this.isEditMode && this.productId && this.productForm.get('lastModifiedByUserId')?.value === null) {
+            this.productService.getProductById(this.productId!).subscribe(product => {
+                this.productForm.patchValue({
+                    lastModifiedByUserId: product.lastModifiedByName ? this.availableUsers.find(u => u.name === product.lastModifiedByName)?.id : null
+                });
+            });
+        }
       },
       error: (err) => {
         this.snackBar.open('Error al cargar usuarios disponibles: ' + err.message, 'Cerrar', { duration: 3000 });

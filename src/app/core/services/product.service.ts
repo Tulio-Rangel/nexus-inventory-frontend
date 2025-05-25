@@ -25,6 +25,11 @@ export class ProductService {
     return this.http.delete<void>(`${this.apiUrl}/${id}`, { params });
   }
 
+  //! Método agregado para obtener todos los productos
+  getProductById(id: number): Observable<ProductResponseDTO> {
+    return this.http.get<ProductResponseDTO>(`${this.apiUrl}/${id}`);
+  }
+
   searchProducts(filters: { entryDate?: string, userId?: number, productName?: string }): Observable<ProductResponseDTO[]> {
     let params = new HttpParams();
     if (filters.entryDate) {
