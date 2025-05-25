@@ -25,7 +25,6 @@ export class ProductService {
     return this.http.delete<void>(`${this.apiUrl}/${id}`, { params });
   }
 
-  //! Método agregado para obtener todos los productos
   getProductById(id: number): Observable<ProductResponseDTO> {
     return this.http.get<ProductResponseDTO>(`${this.apiUrl}/${id}`);
   }
