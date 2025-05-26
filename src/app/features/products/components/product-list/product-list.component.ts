@@ -1,8 +1,8 @@
 import { Component, OnInit, ViewChild } from '@angular/core';
 import { ProductService } from '../../../../core/services/product.service';
-import { UserService } from '../../../../core/services/user.service'; // Para el filtro por usuario
+import { UserService } from '../../../../core/services/user.service';
 import { ProductResponseDTO } from '../../models/product.model';
-import { User } from '../../../users/models/user.model'; // Para el dropdown de usuarios
+import { User } from '../../../users/models/user.model';
 import { MatTableDataSource } from '@angular/material/table';
 import { MatPaginator } from '@angular/material/paginator';
 import { MatSort } from '@angular/material/sort';
@@ -12,6 +12,7 @@ import { FormControl, FormGroup } from '@angular/forms';
 import * as moment from 'moment';
 import { MatDialog } from '@angular/material/dialog';
 import { ConfirmationDialogComponent, ConfirmationDialogData } from '../../../../shared/components/confirmation-dialog/confirmation-dialog.component';
+import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 
 @Component({
   selector: 'app-product-list',
@@ -21,7 +22,7 @@ import { ConfirmationDialogComponent, ConfirmationDialogData } from '../../../..
 export class ProductListComponent implements OnInit {
   displayedColumns: string[] = ['id', 'productName', 'quantity', 'entryDate', 'registeredByName', 'lastModifiedByName', 'lastModificationDate', 'actions'];
   dataSource: MatTableDataSource<ProductResponseDTO> = new MatTableDataSource();
-  availableUsers: User[] = []; // Para el filtro por usuario
+  availableUsers: User[] = [];
 
   filterForm: FormGroup;
 
@@ -43,34 +44,71 @@ export class ProductListComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.loadProducts();
-    this.loadUsers(); // Cargar usuarios para el filtro
+    this.loadAllProducts();
 
-    // Suscribirse a cambios en el formulario de filtros para recargar los productos
-    this.filterForm.valueChanges.subscribe(() => {
-      this.loadProducts();
+    this.loadUsers();
+
+    this.filterForm.valueChanges.pipe(
+      debounceTime(300), // Espera 300ms después de que el usuario deja de escribir/seleccionar
+      distinctUntilChanged((prev, curr) => JSON.stringify(prev) === JSON.stringify(curr)) // Solo emite si los valores cambian realmente
+    ).subscribe(() => {
+      this.applyDynamicFilters();
     });
   }
 
-  loadProducts(): void {
-    const filters = this.filterForm.value;
-    const formattedFilters = {
-      entryDate: filters.entryDate ? moment(filters.entryDate).format('YYYY-MM-DD') : undefined,
-      userId: filters.userId || undefined,
-      productName: filters.productName || undefined
-    };
-
-    this.productService.searchProducts(formattedFilters).subscribe({
+  loadAllProducts(): void {
+    this.productService.getAllProducts().subscribe({
       next: (data) => {
         this.dataSource = new MatTableDataSource(data);
         this.dataSource.paginator = this.paginator;
         this.dataSource.sort = this.sort;
       },
       error: (err) => {
-        this.snackBar.open('Error al cargar mercancía: ' + err.error.message, 'Cerrar', { duration: 3000 });
-        console.error('Error al cargar mercancía:', err);
+        this.snackBar.open('Error al cargar todos los productos: ' + (err.error?.message || err.message), 'Cerrar', { duration: 3000 });
+        console.error('Error al cargar todos los productos:', err);
       }
     });
+  }
+
+  // Lógica de filtrado que se ejecuta dinámicamente
+  applyDynamicFilters(): void {
+    const filters = this.filterForm.value;
+    const formattedFilters: { entryDate?: string, userId?: number, productName?: string } = {};
+
+    let hasAnyFilterValue = false;
+
+    if (filters.entryDate) {
+      formattedFilters.entryDate = moment(filters.entryDate).format('YYYY-MM-DD');
+      hasAnyFilterValue = true;
+    }
+    if (filters.userId) {
+      formattedFilters.userId = filters.userId;
+      hasAnyFilterValue = true;
+    }
+    // Asegura que productName no sea solo espacios en blanco
+    if (filters.productName && filters.productName.trim() !== '') {
+      formattedFilters.productName = filters.productName.trim();
+      hasAnyFilterValue = true;
+    }
+
+    // Si NO hay ningún filtro activo (todos los campos están vacíos o nulos)
+    if (!hasAnyFilterValue) {
+      // Cargam todos los productos de nuevo
+      this.loadAllProducts();
+    } else {
+      // Si hay al menos un filtro con valor, aplica la búsqueda
+      this.productService.searchProducts(formattedFilters).subscribe({
+        next: (data) => {
+          this.dataSource = new MatTableDataSource(data);
+          this.dataSource.paginator = this.paginator;
+          this.dataSource.sort = this.sort;
+        },
+        error: (err) => {
+          this.snackBar.open('Error al buscar mercancía: ' + (err.error?.message || err.message), 'Cerrar', { duration: 3000 });
+          console.error('Error al buscar mercancía:', err);
+        }
+      });
+    }
   }
 
   loadUsers(): void {
@@ -79,7 +117,7 @@ export class ProductListComponent implements OnInit {
         this.availableUsers = users;
       },
       error: (err) => {
-        console.error('Error al cargar usuarios para filtro:', err);
+        console.error('Error al cargar usuarios para filtro/modal:', err);
       }
     });
   }
@@ -96,7 +134,7 @@ export class ProductListComponent implements OnInit {
       cancelButtonText: 'Cancelar',
       showUserSelection: true,
       availableUsers: this.availableUsers,
-      productRegisteredById: registeredByUserId // Pasa el ID del usuario que lo registró para preseleccionar
+      productRegisteredById: registeredByUserId
     };
 
     const dialogRef = this.dialog.open(ConfirmationDialogComponent, {
@@ -111,10 +149,10 @@ export class ProductListComponent implements OnInit {
           this.productService.deleteProduct(productId, requestingUserId).subscribe({
             next: () => {
               this.snackBar.open('Mercancía eliminada correctamente', 'Cerrar', { duration: 3000 });
-              this.loadProducts();
+              this.loadAllProducts(); // Recarga la lista completa después de la eliminación
             },
             error: (err) => {
-              this.snackBar.open('Error al eliminar mercancía: ' + err.error.message, 'Cerrar', { duration: 5000 });
+              this.snackBar.open('Error al eliminar mercancía: ' + (err.error?.message || err.message), 'Cerrar', { duration: 5000 });
               console.error('Error al eliminar mercancía:', err);
             }
           });
@@ -124,6 +162,10 @@ export class ProductListComponent implements OnInit {
       }
     });
   }
+  // Método para aplicar filtros manualmente
+  // applyFilters(): void {
+  //   this.applyDynamicFilters();
+  // }
 
   clearFilters(): void {
     this.filterForm.reset({
@@ -131,6 +173,6 @@ export class ProductListComponent implements OnInit {
       userId: null,
       productName: ''
     });
-    // loadProducts() se llamará automáticamente por valueChanges
+    this.loadAllProducts();
   }
 }

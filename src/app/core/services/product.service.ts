@@ -29,6 +29,10 @@ export class ProductService {
     return this.http.get<ProductResponseDTO>(`${this.apiUrl}/${id}`);
   }
 
+  getAllProducts(): Observable<ProductResponseDTO[]> {
+    return this.http.get<ProductResponseDTO[]>(`${this.apiUrl}/all`);
+  }
+
   searchProducts(filters: { entryDate?: string, userId?: number, productName?: string }): Observable<ProductResponseDTO[]> {
     let params = new HttpParams();
     if (filters.entryDate) {
